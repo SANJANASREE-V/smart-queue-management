@@ -172,26 +172,34 @@ Password: voter123
 ---
 
 ## 📊 Project Structure
+
+```
 smart-queue-management/
-├── queue-management/          # Spring Boot Backend
-│   ├── src/main/java/
-│   │   └── com/polling/queue/management/
-│   │       ├── controller/    # REST API Controllers
-│   │       ├── service/       # Business Logic
-│   │       ├── model/         # MongoDB Models
-│   │       ├── repository/    # MongoDB Repositories
-│   │       ├── dto/           # Data Transfer Objects
-│   │       ├── config/        # Security & CORS Config
-│   │       └── util/          # JWT Utility
-│   └── src/main/resources/
-│       └── application.properties
 │
-└── REGISTER/                  # Frontend
-├── index.html             # Voter Login
-├── admin.html             # Admin Login
-├── adDashboard.html       # Admin Dashboard
-├── dashboard.html         # Voter Dashboard
-└── style.css              # Stylesheet
+├── queue-management/              # Spring Boot Backend
+│   ├── src/
+│   │   └── main/
+│   │       ├── java/
+│   │       │   └── com/polling/queue/management/
+│   │       │       ├── controller/    # REST API Controllers
+│   │       │       ├── service/       # Business Logic
+│   │       │       ├── model/         # MongoDB Models
+│   │       │       ├── repository/    # MongoDB Repositories
+│   │       │       ├── dto/           # Data Transfer Objects
+│   │       │       ├── config/        # Security & CORS Config
+│   │       │       └── util/          # JWT Utility
+│   │       └── resources/
+│   │           └── application.properties
+│   └── pom.xml
+│
+└── Register/                      # Frontend
+    ├── index.html                 # Voter Login & Register
+    ├── admin.html                 # Admin Login
+    ├── adDashboard.html           # Admin Dashboard
+    ├── dashboard.html             # Voter Dashboard
+    └── style.css                  # Stylesheet
+```
+
 
 ---
 
