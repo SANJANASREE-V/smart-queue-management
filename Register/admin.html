@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Login</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="login-container">
+
+    <h2>Admin Login</h2>
+
+    <form id="adminLoginForm">
+
+        <label>Email</label>
+        <input type="email" id="adminEmail" placeholder="Enter admin email" required>
+
+        <label>Password</label>
+        <input type="password" id="adminPassword" placeholder="Enter password" required>
+
+        <div id="errorMsg" style="color:red; display:none; margin-top:10px;"></div>
+
+        <button type="submit">Login</button>
+
+    </form>
+
+</div>
+
+<script>
+const API_BASE_URL = 'http://localhost:8080';
+
+document.getElementById('adminLoginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const email    = document.getElementById('adminEmail').value;
+    const password = document.getElementById('adminPassword').value;
+    const errorMsg = document.getElementById('errorMsg');
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Check if user is actually ADMIN
+            if (data.data.role !== 'ADMIN') {
+                errorMsg.style.display = 'block';
+                errorMsg.innerText = 'Access denied! You are not an admin.';
+                return;
+            }
+
+            // Save token and user info
+            localStorage.setItem('token', data.data.token);
+            localStorage.setItem('userRole', data.data.role);
+            localStorage.setItem('userId', data.data.userId);
+            localStorage.setItem('userFullName', data.data.fullName);
+            localStorage.setItem('Email', email);
+
+            // Redirect to admin dashboard
+            window.location.href = 'adDashboard.html';
+
+        } else {
+            errorMsg.style.display = 'block';
+            errorMsg.innerText = 'Login failed: ' + data.message;
+        }
+
+    } catch (error) {
+        errorMsg.style.display = 'block';
+        errorMsg.innerText = 'Error connecting to server. Make sure backend is running!';
+        console.error(error);
+    }
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Queue System | Login</title>
+    <link rel="stylesheet" href="style.css">
+    
+</head>
+<body>
+    <div class="login-box">
+        <div class="tabs">
+            <button id="tab-login" class="tab-btn active" onclick="showForm('login')">Login</button>
+            <button id="tab-signup" class="tab-btn" onclick="showForm('signup')">New Account</button>
+        </div>
+
+        <div class="header">
+            <h2 id="form-title">Voter Login</h2>
+            <p id="form-subtitle">Track live polling booth wait times</p>
+        </div>
+
+    <form id="loginForm">
+        <div class="input-group">
+            <label>Email</label>
+            <input type="email" id="loginEmail" placeholder="Enter your email" required>
+        </div>
+        <div class="input-group">
+            <label>Password</label>
+            <input type="password" id="passwordField" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="primary-btn">Sign In</button>
+        <a href="admin.html">Admin Login</a>
+    </form>
+        
+        <form id="signupForm" style="display: none;">
+            <div class="input-group">
+                <label>Full Name</label>
+                <input type="text" id="signupFullName" placeholder="Enter your name" required>
+            </div>
+            <div class="input-group">
+                <label>Email</label>
+                <input type="email" id="signupEmail" placeholder="Enter your email" required>
+            </div>
+            <div class="input-group">
+                <label>Voter ID Number</label>
+                <input type="text" id="signupVoterId" placeholder="ABC12345678" required>
+            </div>
+            <div class="input-group">
+                <label>Create Password</label>
+                <input type="password" id="signupPassword" placeholder="••••••••" required>
+            </div>
+        <button type="submit" class="primary-btn signup-theme">Register</button>
+        </form>
+    </div>
+
+<script>
+// Import api.js
+const API_BASE_URL = 'http://localhost:8080';
+
+// ── Tab switching ─────────────────────────
+function showForm(type) {
+    const loginForm   = document.getElementById('loginForm');
+    const signupForm  = document.getElementById('signupForm');
+    const title       = document.getElementById('form-title');
+    const loginBtn    = document.getElementById('tab-login');
+    const signupBtn   = document.getElementById('tab-signup');
+
+    if (type === 'login') {
+        loginForm.style.display  = 'block';
+        signupForm.style.display = 'none';
+        title.innerText = 'Voter Login';
+        loginBtn.classList.add('active');
+        signupBtn.classList.remove('active');
+    } else {
+        loginForm.style.display  = 'none';
+        signupForm.style.display = 'block';
+        title.innerText = 'Create Account';
+        signupBtn.classList.add('active');
+        loginBtn.classList.remove('active');
+    }
+}
+
+// ── LOGIN FORM ────────────────────────────
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const email    = document.getElementById('loginEmail').value;
+    const password = document.getElementById('passwordField').value;
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Save token and user info
+            localStorage.setItem('token', data.data.token);
+            localStorage.setItem('userRole', data.data.role);
+            localStorage.setItem('userEmail', email); 
+            localStorage.setItem('userEmail', email);
+            localStorage.setItem('voterEmail', email); 
+            localStorage.setItem('userId', data.data.userId);
+            localStorage.setItem('userFullName', data.data.fullName);
+
+            // Redirect based on role
+            if (data.data.role === 'ADMIN') {
+                window.location.href = 'adDashboard.html';
+            } else {
+                window.location.href = 'dashboard.html';
+            }
+        } else {
+            alert('Login failed: ' + data.message);
+        }
+    } catch (error) {
+        alert('Error connecting to server. Make sure backend is running!');
+        console.error(error);
+    }
+});
+
+// ── SIGNUP FORM ───────────────────────────
+document.getElementById('signupForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const fullName  = document.getElementById('signupFullName').value;
+    const email     = document.getElementById('signupEmail').value;
+    const voterId   = document.getElementById('signupVoterId').value;
+    const password  = document.getElementById('signupPassword').value;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fullName,
+                email,
+                password,
+                voterId,
+                role: 'VOTER',
+                username: fullName,
+                boothNumber: 'B001',
+                address: 'N/A',
+                constituency: 'N/A',
+                district: 'N/A',
+                boothName: 'N/A',
+                capacity: 50
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Registration successful! Please login.');
+            showForm('login');
+        } else {
+            alert('Registration failed: ' + data.message);
+        }
+    } catch (error) {
+        alert('Error connecting to server!');
+        console.error(error);
+    }
+});
+</script>
+</body>
+</html>

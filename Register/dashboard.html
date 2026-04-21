@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voter Dashboard</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+</head>
+
+<body>
+
+<div class="dashboard-box">
+
+<div class="dash-header">
+<div>
+<h2 id="welcomeText">Welcome!</h2>
+</div>
+
+<button class="logout-link" onclick="logout()">Logout</button>
+</div>
+
+
+<!-- QUEUE STATUS CARDS -->
+
+<div id="boothsContainer" class="booths-grid">
+    <!-- Booth cards will be loaded here dynamically -->
+    <p id="loadingText">Loading booths...</p>
+</div>
+
+<!-- LIVE STATUS -->
+
+<div class="info-banner" id="statusBanner">
+Updating live status...
+</div>
+
+<!-- TOKEN DISPLAY -->
+<div id="tokenBox" style="display:none; margin-top:20px; padding:20px;
+    background: linear-gradient(135deg, #FF9933, #138808);
+    border-radius:15px; text-align:center; color:white;">
+    <h3>🎫 Your Queue Token</h3>
+    <div style="font-size:3rem; font-weight:bold;" id="tokenNumber">#0</div>
+    <p id="tokenBoothName" style="font-size:1rem;"></p>
+    <p id="peopleAhead" style="font-size:1rem;"></p>
+    <p id="tokenWaitTime" style="font-size:0.9rem; opacity:0.9;"></p>
+    <button onclick="cancelToken()" style="margin-top:10px;
+        padding:8px 20px; background:white; color:#d9534f;
+        border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+        ❌ Cancel Token
+    </button>
+</div>
+
+<!-- BEST TIME RECOMMENDATION -->
+
+<div class="recommendation-box">
+<h4>💡 Best Time Suggestion</h4>
+<p id="recommendationText">Analyzing crowd patterns...</p>
+</div>
+
+<!-- ALERT SYSTEM -->
+
+<div class="alert-box">
+<h4>🔔 Queue Alert</h4>
+<p>Notify me when queue drops below:</p>
+
+<input type="number" id="alertValue" placeholder="Example: 10">
+
+<button class="primary-btn" onclick="setAlert()">Set Alert</button>
+
+
+<p id="alertStatus"></p>
+
+</div>
+<div>
+<button id="refreshBtn" class="primary-btn" style="margin-top:15px;" onclick="refreshData()">
+🔄 Refresh Live Data
+</button>
+</div>
+
+</div>
+
+
+
+<script>
+const API_BASE_URL = 'http://localhost:8080';
+// ── EmailJS Config ────────────────────────
+const EMAILJS_SERVICE_ID  = 'service_nl21bis';  
+const EMAILJS_TEMPLATE_ID = 'template_2fkyw5s'; 
+const EMAILJS_PUBLIC_KEY  = 'hPvDBknzLqBhc1uJX';  
+
+// Initialize EmailJS
+emailjs.init(EMAILJS_PUBLIC_KEY);
+
+// ── Auth Check ────────────────────────────
+const token = localStorage.getItem('token');
+const userRole = localStorage.getItem('userRole');
+const userFullName = localStorage.getItem('userFullName');
+
+if (!token || userRole !== 'VOTER') {
+    window.location.href = 'index.html';
+}
+
+// ── Show Welcome Message ──────────────────
+document.getElementById('welcomeText').innerText = 
+    `Welcome, ${userFullName || 'Voter'}!`;
+
+// ── Load ALL Booths ───────────────────────
+async function updateNumbers() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/booths`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+        const container  = document.getElementById('boothsContainer');
+        const loadingText = document.getElementById('loadingText');
+
+        if (data.success && data.data && data.data.length > 0) {
+            if (loadingText) loadingText.style.display = 'none';
+            container.innerHTML = '';
+
+            data.data.forEach(booth => {
+                const count      = booth.currentQueueLength || 0;
+                const wait       = booth.estimatedWaitMinutes || count * 2;
+                const crowdLevel = booth.crowdLevel || 'LOW';
+
+                let badgeClass = 'badge-low';
+                let cardClass  = 'low';
+                let emoji      = '🟢';
+                let statusText = 'Low Crowd';
+
+                if (crowdLevel === 'HIGH' || count >= 30) {
+                    badgeClass = 'badge-high';
+                    cardClass  = 'high';
+                    emoji      = '🔴';
+                    statusText = 'High Crowd';
+                } else if (crowdLevel === 'MEDIUM' || count >= 15) {
+                    badgeClass = 'badge-medium';
+                    cardClass  = 'medium';
+                    emoji      = '🟡';
+                    statusText = 'Medium Crowd';
+                }
+
+                const card = document.createElement('div');
+                card.className = `booth-card ${cardClass}`;
+                card.innerHTML = `
+                    <h3>${emoji} ${booth.boothName}</h3>
+                    <p style="color:gray; font-size:0.85rem;">
+                        ${booth.boothNumber} | ${booth.constituency}
+                    </p>
+                    <div class="booth-queue-number">${count}</div>
+                    <p style="font-size:0.85rem;">people in queue</p>
+                    <p style="font-size:0.85rem;">⏱ Wait: <b>${wait} min</b></p>
+                    <span class="booth-status-badge ${badgeClass}">
+                        ${statusText}
+                    </span>
+                    <p style="font-size:0.75rem; color:gray; margin-top:8px;">
+                        ${booth.optimalVisitTime || 'Check back later'}
+                    </p>
+                    <button onclick="selectBooth('${booth.id}', '${booth.boothName}')"
+                        style="margin-top:10px; padding:8px 15px;
+                        background:#138808; color:white; border:none;
+                        border-radius:8px; cursor:pointer; width:100%;">
+                        Select This Booth
+                    </button>
+                `;
+                container.appendChild(card);
+
+                // Check alert for each booth
+                checkAlert(count, booth.boothName);
+            });
+
+            // Update status banner safely
+            const leastCrowded = data.data.reduce((min, b) =>
+                (b.currentQueueLength < min.currentQueueLength) ? b : min
+            );
+
+            const statusBanner = document.getElementById('statusBanner');
+            const recText      = document.getElementById('recommendationText');
+
+            if (statusBanner) {
+                statusBanner.innerText =
+                    `💡 Least crowded: ${leastCrowded.boothName} with only ${leastCrowded.currentQueueLength} people!`;
+                statusBanner.style.backgroundColor = '#e7f3e8';
+            }
+
+            if (recText) {
+                recText.innerText = leastCrowded.optimalVisitTime ||
+                    'Visit the least crowded booth for fastest service!';
+            }
+
+        } else {
+            if (loadingText) loadingText.innerText = '⚠️ No booths available.';
+        }
+
+        // Update token status if voter has a token
+        await updateTokenStatus(); 
+
+    } catch (error) {
+        console.error('Error:', error);
+        const loadingText = document.getElementById('loadingText');
+        if (loadingText) loadingText.innerText = '⚠️ Error connecting to server.';
+        throw error; // rethrow so refreshData catches it
+    }
+}
+
+// ── Select a Booth ────────────────────────
+async function selectBooth(boothId, boothName) {
+    localStorage.setItem('selectedBoothId', boothId);
+    localStorage.setItem('selectedBoothName', boothName);
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/tokens/generate`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                boothId: boothId,
+                userId: localStorage.getItem('userId')
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            const t = data.data;
+
+            // Save token locally
+            localStorage.setItem('myToken', t.tokenNumber);
+            localStorage.setItem('myBoothId', boothId);
+
+            // Show token box
+            document.getElementById('tokenBox').style.display = 'block';
+            document.getElementById('tokenNumber').innerText  = '#' + t.tokenNumber;
+            document.getElementById('tokenBoothName').innerText =
+                '📍 ' + t.boothName + ' (' + t.boothNumber + ')';
+            document.getElementById('peopleAhead').innerText  =
+                '👥 ' + t.peopleAhead + ' people ahead of you';
+            document.getElementById('tokenWaitTime').innerText =
+                '⏱ Estimated wait: ' + t.waitMinutes + ' minutes';
+
+            // Scroll to token box
+            document.getElementById('tokenBox').scrollIntoView(
+                {behavior: 'smooth'}
+            );
+
+        } else {
+            alert('Failed to generate token: ' + data.message);
+        }
+
+    } catch (error) {
+        console.error('Token error:', error);
+        alert('Error generating token!');
+    }
+}
+
+// ── Update token status in real time ──────
+async function updateTokenStatus() {
+    const myBoothId = localStorage.getItem('myBoothId');
+    const myToken   = localStorage.getItem('myToken');
+
+    if (!myBoothId || !myToken) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/booths/${myBoothId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            const booth       = data.data;
+            const currentQueue = booth.currentQueueLength || 0;
+            const myTokenNum  = parseInt(myToken);
+
+            // Calculate people ahead based on current queue
+            const peopleAhead = Math.max(0, currentQueue);
+            const waitMinutes = peopleAhead * 2;
+
+            // Update token display
+            const tokenBox = document.getElementById('tokenBox');
+            if (tokenBox && tokenBox.style.display !== 'none') {
+                document.getElementById('peopleAhead').innerText =
+                    `👥 ${peopleAhead} people ahead of you`;
+                document.getElementById('tokenWaitTime').innerText =
+                    `⏱ Estimated wait: ${waitMinutes} minutes`;
+
+                // Show special message if queue is very low
+                if (currentQueue === 0) {
+                    document.getElementById('peopleAhead').innerText =
+                        '✅ No one ahead! Go vote now!';
+                    document.getElementById('tokenWaitTime').innerText =
+                        '⏱ Estimated wait: 0 minutes';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Token update error:', error);
+    }
+}
+
+// ── Cancel Token ──────────────────────────
+function cancelToken() {
+    localStorage.removeItem('myToken');
+    localStorage.removeItem('myBoothId');
+    document.getElementById('tokenBox').style.display = 'none';
+    alert('Token cancelled!');
+}
+
+// ── Set Alert ─────────────────────────────
+async function setAlert() {
+    const value = document.getElementById('alertValue').value;
+
+    if (!value) {
+        alert('Please enter a number!');
+        return;
+    }
+
+    // Save alert value locally
+    localStorage.setItem('queueAlert', value);
+
+    // Get voter email
+    const voterEmail = localStorage.getItem('voterEmail');
+
+    // Update status message
+    document.getElementById('alertStatus').innerText =
+        `✅ Alert set! Email notification will be sent to ${voterEmail} when queue drops below ${value}`;
+}
+
+// ── Check Alert ───────────────────────────
+function checkAlert(currentQueue, boothName) {
+    const alertValue = localStorage.getItem('queueAlert');
+    if (alertValue && currentQueue < parseInt(alertValue)) {
+        const userEmail = localStorage.getItem('voterEmail'); 
+        const userName   = localStorage.getItem('userFullName');
+        const myToken    = localStorage.getItem('myToken');
+
+        // Send email automatically
+        emailjs.send(
+            EMAILJS_SERVICE_ID,
+            EMAILJS_TEMPLATE_ID,
+            {
+                to_email:     userEmail,
+                to_name:      userName || 'Voter',
+                booth_name:   boothName,
+                queue_length: currentQueue,
+                token_number: myToken || 'N/A',
+                message:      `Queue has dropped to ${currentQueue} people — below your alert of ${alertValue}!`,
+                visit_time:   'Now is a great time to vote!'
+            }
+        ).then(() => {
+            console.log('Alert email sent!');
+            alert(`🔔 Queue dropped below ${alertValue}! Email sent to ${userEmail}`);
+        }).catch(error => {
+            console.error('Email error:', error);
+            alert(`🔔 Queue dropped below ${alertValue}!`);
+        });
+
+        // Remove alert after triggering
+        localStorage.removeItem('queueAlert');
+
+        // Update alert status on screen
+        const alertStatus = document.getElementById('alertStatus');
+        if (alertStatus) {
+            alertStatus.innerText = `✅ Alert triggered! Email sent to ${userEmail}`;
+            alertStatus.style.color = 'green';
+        }
+    }
+}
+
+// ── Send Email Alert ──────────────────────
+async function sendEmailAlert(boothName, queueLength, message) {
+    const userEmail    = localStorage.getItem('userEmail');
+    const userName     = localStorage.getItem('userFullName');
+    const myToken      = localStorage.getItem('myToken');
+    const selectedBooth = localStorage.getItem('selectedBoothName');
+
+    if (!userEmail) {
+        console.log('No email found for user');
+        return;
+    }
+
+    const templateParams = {
+        to_email:     userEmail,
+        to_name:      userName || 'Voter',
+        booth_name:   boothName || selectedBooth || 'Your Booth',
+        queue_length: queueLength,
+        token_number: myToken || 'N/A',
+        message:      message || 'Queue has dropped to your alert level!',
+        visit_time:   'Now is a great time to vote!'
+    };
+
+    try {
+        await emailjs.send(
+            EMAILJS_SERVICE_ID,
+            EMAILJS_TEMPLATE_ID,
+            templateParams
+        );
+        console.log('Email sent successfully!');
+        document.getElementById('alertStatus').innerText =
+            '✅ Email notification sent to ' + userEmail;
+    } catch (error) {
+        console.error('Email error:', error);
+    }
+}
+
+async function refreshData() {
+    const btn = document.getElementById('refreshBtn');
+    btn.innerText = '🔄 Refreshing...';
+    btn.disabled = true;
+
+    try {
+        await updateNumbers();
+        btn.innerText = '✅ Refreshed!';
+    } catch (error) {
+        console.error('Refresh error:', error);
+        btn.innerText = '❌ Failed!';
+    } finally {
+        setTimeout(() => {
+            btn.innerText = '🔄 Refresh Live Data';
+            btn.disabled = false;
+        }, 2000);
+    }
+}
+
+async function testEmail() {
+    const userEmail = localStorage.getItem('voterEmail'); 
+    try {
+        const result = await emailjs.send(
+            EMAILJS_SERVICE_ID,
+            EMAILJS_TEMPLATE_ID,
+            {
+                to_email:     userEmail, // ← uses logged in voter's email
+                to_name:      localStorage.getItem('userFullName') || 'Voter',
+                booth_name:   'Main Booth',
+                queue_length: 5,
+                token_number: localStorage.getItem('myToken') || '#1',
+                message:      'Test alert - queue dropped below your threshold!',
+                visit_time:   'Now is a great time to vote!'
+            }
+        );
+        console.log('Email sent!', result);
+        alert('✅ Test email sent to ' + userEmail + '! Check inbox!');
+    } catch (error) {
+        console.error('Email failed:', error);
+        alert('❌ Email failed: ' + JSON.stringify(error));
+    }
+}
+
+// ── Logout ────────────────────────────────
+function logout() {
+    localStorage.clear();
+    window.location.href = 'index.html';
+}
+
+// ── Auto refresh every 30 seconds ─────────
+setInterval(updateNumbers, 30000);
+
+// ── Load on page start ────────────────────
+window.onload = function() {
+    updateNumbers();
+
+    const savedToken = localStorage.getItem('myToken');
+    const savedBooth = localStorage.getItem('selectedBoothName');
+    if (savedToken && savedBooth) {
+        document.getElementById('tokenBox').style.display = 'block';
+        document.getElementById('tokenNumber').innerText  = '#' + savedToken;
+        document.getElementById('tokenBoothName').innerText = '📍 ' + savedBooth;
+        updateTokenStatus(); // ← update immediately on load
+    }
+};
+</script>
+</body>
+</html>
