@@ -171,6 +171,7 @@ async function updateNumbers() {
 
                 // Check alert for each booth
                 checkAlert(count, booth.boothName);
+                checkTokenPassed(count); 
             });
 
             // Update status banner safely
@@ -198,6 +199,8 @@ async function updateNumbers() {
 
         // Update token status if voter has a token
         await updateTokenStatus(); 
+        // Check if queue passed token
+        checkTokenPassed(currentQueue);
 
     } catch (error) {
         console.error('Error:', error);
@@ -311,6 +314,7 @@ async function updateTokenStatus() {
 function cancelToken() {
     localStorage.removeItem('myToken');
     localStorage.removeItem('myBoothId');
+    localStorage.removeItem('tokenPassedAlerted');
     document.getElementById('tokenBox').style.display = 'none';
     alert('Token cancelled!');
 }
@@ -372,6 +376,60 @@ function checkAlert(currentQueue, boothName) {
         if (alertStatus) {
             alertStatus.innerText = `✅ Alert triggered! Email sent to ${userEmail}`;
             alertStatus.style.color = 'green';
+        }
+    }
+}
+
+// ── Check if queue passed voter's token ───
+function checkTokenPassed(currentQueue) {
+    const myToken = localStorage.getItem('myToken');
+    const myBoothId = localStorage.getItem('myBoothId');
+    const selectedBoothName = localStorage.getItem('selectedBoothName');
+    const tokenPassedAlerted = localStorage.getItem('tokenPassedAlerted');
+
+    if (!myToken || !myBoothId) return;
+    if (tokenPassedAlerted === myToken) return; // already alerted
+
+    const myTokenNum = parseInt(myToken);
+
+    // If current queue has passed token number
+    if (currentQueue > myTokenNum) {
+        // Show browser alert
+        alert(`⚠️ The queue at ${selectedBoothName} has passed your token #${myTokenNum}! Current queue: ${currentQueue}. Please visit the booth immediately!`);
+
+        // Send email notification
+        const voterEmail = localStorage.getItem('voterEmail');
+        const userName   = localStorage.getItem('userFullName');
+
+        emailjs.send(
+            EMAILJS_SERVICE_ID,
+            EMAILJS_TEMPLATE_ID,
+            {
+                to_email:     voterEmail,
+                to_name:      userName || 'Voter',
+                booth_name:   selectedBoothName,
+                queue_length: currentQueue,
+                token_number: '#' + myTokenNum,
+                message:      `⚠️ URGENT: The queue has passed your token #${myTokenNum}! Current queue is at ${currentQueue}. Please visit the booth immediately or your turn may be skipped!`,
+                visit_time:   'Please go to the booth RIGHT NOW!'
+            }
+        ).then(() => {
+            console.log('Token passed alert email sent!');
+        }).catch(error => {
+            console.error('Email error:', error);
+        });
+
+        // Mark as alerted so it doesn't repeat
+        localStorage.setItem('tokenPassedAlerted', myToken);
+
+        // Update token box to show warning
+        const tokenBox = document.getElementById('tokenBox');
+        if (tokenBox && tokenBox.style.display !== 'none') {
+            document.getElementById('peopleAhead').innerText =
+                '⚠️ Queue has passed your token! Go NOW!';
+            document.getElementById('peopleAhead').style.color = 'red';
+            document.getElementById('tokenWaitTime').innerText =
+                '🚨 Visit the booth immediately!';
         }
     }
 }
