@@ -2,128 +2,218 @@
 
 A full-stack web application to manage and monitor polling booth queues in real time.
 
+---
+
 ## 📋 Table of Contents
 - [About](#about)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Setup Instructions](#setup-instructions)
 - [API Endpoints](#api-endpoints)
-- [Screenshots](#screenshots)
+- [User Roles](#user-roles)
+- [Pages](#pages)
+
+---
 
 ## 📌 About
-This system helps voters and election officials manage polling booth queues efficiently. 
-Voters can view real-time queue status, get virtual tokens, and receive email alerts 
+This system helps voters and election officials manage polling booth queues efficiently.
+Voters can view real-time queue status, get virtual tokens, and receive email alerts
 when queues drop below their preferred level.
 
+---
+
 ## ✨ Features
-- 🔐 JWT Authentication (Role-based: ADMIN & VOTER)
+- 🔐 JWT Authentication with Role-based access (ADMIN and VOTER)
 - 🏛️ Multi-booth support with real-time queue tracking
-- 🎫 Virtual Queue Token System
+- 🎫 Virtual Queue Token System with sequential numbering
 - 📧 Email notifications via EmailJS
 - 📊 Live analytics (peak queue, average queue, total updates)
-- 🟢🟡🔴 Crowd level detection (Low/Medium/High)
+- 🟢🟡🔴 Crowd level detection (Low, Medium, High)
 - ⏱️ Estimated wait time calculation
 - 🔔 Custom queue alert system
 - 📈 Live queue trend chart
+- 🔄 Auto refresh every 30 seconds
+
+---
 
 ## 🛠️ Tech Stack
+
 | Layer | Technology |
 |---|---|
 | Frontend | HTML, CSS, JavaScript |
-| Backend | Java, Spring Boot |
+| Backend | Java 17, Spring Boot 3 |
 | Database | MongoDB |
 | Security | JWT Authentication |
 | Build Tool | Maven |
-| Email | EmailJS |
+| Email Service | EmailJS |
+| API Testing | Postman |
+
+---
 
 ## ⚙️ Setup Instructions
 
 ### Prerequisites
-- Java 17+
-- Maven 3.8+
-- MongoDB 6.0+
+- Java 17 or higher
+- Maven 3.8 or higher
+- MongoDB 6.0 or higher
 - Git
 
-### Backend Setup
-1. Clone the repository
+### Step 1 - Clone the repository
 ```bash
-   git clone https://github.com/SANJANASREE-V/smart-queue-management.git
+git clone https://github.com/yourusername/smart-queue-management.git
 ```
 
-2. Navigate to project folder
+### Step 2 - Navigate to project folder
 ```bash
-   cd queue-management
+cd queue-management
 ```
 
-3. Start MongoDB
+### Step 3 - Start MongoDB
 ```bash
-   net start MongoDB
+net start MongoDB
 ```
 
-4. Run the application
+### Step 4 - Run the backend
 ```bash
-   mvn spring-boot:run
+mvn spring-boot:run
 ```
 
-5. Backend runs on `http://localhost:8080`
+### Step 5 - Open Frontend
+Open `REGISTER/index.html` in your browser
+Or use Live Server extension in VS Code
 
-### Frontend Setup
-1. Navigate to frontend folder
-```bash
-   cd REGISTER
-```
-
-2. Open `index.html` in browser
-   - Or use Live Server extension in VS Code
+---
 
 ## 🔌 API Endpoints
 
 ### Auth APIs
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/auth/register` | Register voter/admin |
-| POST | `/api/auth/login` | Login and get JWT token |
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| POST | `/api/auth/register` | Register voter or admin | No |
+| POST | `/api/auth/login` | Login and get JWT token | No |
 
 ### Booth APIs
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/booths` | Get all active booths |
-| GET | `/api/booths/{id}` | Get booth by ID |
-| GET | `/api/booths/{id}/history` | Get booth queue history |
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| GET | `/api/booths` | Get all active booths | No |
+| GET | `/api/booths/{id}` | Get booth by ID | No |
+| GET | `/api/booths/{id}/history` | Get booth queue history | No |
 
 ### Admin APIs
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/admin/booths` | Create new booth |
-| PUT | `/api/admin/queue/update` | Update queue length |
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| POST | `/api/admin/booths` | Create new booth | ADMIN |
+| PUT | `/api/admin/queue/update` | Update queue length | ADMIN |
 
 ### Token APIs
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/tokens/generate` | Generate voter token |
-| POST | `/api/tokens/reset/{id}` | Reset booth tokens |
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| POST | `/api/tokens/generate` | Generate voter token | Yes |
+| POST | `/api/tokens/reset/{id}` | Reset booth tokens | Yes |
 
 ### Alert APIs
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/alerts` | Save alert |
-| GET | `/api/alerts/{userId}` | Get user alerts |
-| DELETE | `/api/alerts/{id}` | Delete alert |
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| POST | `/api/alerts` | Save alert | Yes |
+| GET | `/api/alerts/{userId}` | Get user alerts | Yes |
+| DELETE | `/api/alerts/{id}` | Delete alert | Yes |
+
+---
 
 ## 👥 User Roles
-- **ADMIN** — Can create booths, update queue lengths, view analytics
-- **VOTER** — Can view booth queues, get tokens, set alerts
+
+### ADMIN
+- Login via `admin.html`
+- Create and manage polling booths
+- Update queue lengths in real time
+- View live analytics and charts
+- Switch between multiple booths
+
+### VOTER
+- Login via `index.html`
+- View all polling booths with crowd levels
+- Get virtual queue token
+- Set custom queue alerts
+- Receive email notifications
+- See estimated wait times
+
+---
 
 ## 📱 Pages
-- `index.html` — Voter login and registration
-- `admin.html` — Admin login
-- `adDashboard.html` — Admin dashboard with queue control
-- `dashboard.html` — Voter dashboard with booth cards and token system
 
-## 🔐 Default Test Credentials
+| Page | Description |
+|---|---|
+| `index.html` | Voter login and registration |
+| `admin.html` | Admin login page |
+| `adDashboard.html` | Admin dashboard with queue control |
+| `dashboard.html` | Voter dashboard with booth cards and token system |
+
+---
+
+## 🗄️ Database Collections
+
+| Collection | Description |
+|---|---|
+| `users` | Stores voter and admin accounts |
+| `polling_booth` | Stores booth details and queue data |
+| `queue_record` | Stores history of all queue updates |
+| `alerts` | Stores voter alert preferences |
+
+---
+
+## 🔐 Test Credentials
 Admin:
 Email: admin@test.com
 Password: admin123
 Voter:
 Email: voter1@test.com
 Password: voter123
+
+---
+
+## 📊 Project Structure
+
+```
+smart-queue-management/
+│
+├── queue-management/              # Spring Boot Backend
+│   ├── src/
+│   │   └── main/
+│   │       ├── java/
+│   │       │   └── com/polling/queue/management/
+│   │       │       ├── controller/    # REST API Controllers
+│   │       │       ├── service/       # Business Logic
+│   │       │       ├── model/         # MongoDB Models
+│   │       │       ├── repository/    # MongoDB Repositories
+│   │       │       ├── dto/           # Data Transfer Objects
+│   │       │       ├── config/        # Security & CORS Config
+│   │       │       └── util/          # JWT Utility
+│   │       └── resources/
+│   │           └── application.properties
+│   └── pom.xml
+│
+└── Register/                      # Frontend
+    ├── index.html                 # Voter Login & Register
+    ├── admin.html                 # Admin Login
+    ├── adDashboard.html           # Admin Dashboard
+    ├── dashboard.html             # Voter Dashboard
+    └── style.css                  # Stylesheet
+```
+---
+
+## 🚀 How It Works
+
+Admin creates polling booths
+Voters register and login
+Voters see all booths with real-time queue data
+Voters select a booth and get a unique token number
+Admin updates queue as voters arrive and leave
+Voter dashboard auto-refreshes every 30 seconds
+When queue drops below voter's alert level
+→ Email notification is sent automatically
+
+
+---
+
+## 👩‍💻 Built By
+SANJANASREE V 
