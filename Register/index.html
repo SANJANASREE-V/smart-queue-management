@@ -135,8 +135,8 @@ document.getElementById('signupForm').addEventListener('submit', async function(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 fullName,
-                email,
-                password,
+                email:email,
+                password:password,
                 voterId,
                 role: 'VOTER',
                 username: fullName,
