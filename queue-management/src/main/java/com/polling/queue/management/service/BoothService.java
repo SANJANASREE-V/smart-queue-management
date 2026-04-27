@@ -41,8 +41,9 @@ public class BoothService {
     }
 
     public List<PollingBooth> getAllActiveBooths() {
-    return boothRepository.findByIsActiveTrue(); // ← filter condition
+    return boothRepository.findAll(); // ← return ALL booths for now
     }
+
 
     public PollingBooth getBoothById(String boothId) {
         return boothRepository.findById(boothId)
