@@ -200,7 +200,7 @@ async function updateNumbers() {
         // Update token status if voter has a token
         await updateTokenStatus(); 
         // Check if queue passed token
-        checkTokenPassed(currentQueue);
+        await(currentQueue);
 
     } catch (error) {
         console.error('Error:', error);
